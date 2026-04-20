@@ -2,6 +2,8 @@ import numpy as np
 import random
 import math
 import copy
+import os
+import csv
 
 class AdaptiveMultiStageStressTestedHPO:
     def __init__ (self, 
@@ -10,7 +12,8 @@ class AdaptiveMultiStageStressTestedHPO:
                  beta = 0.5,    #latency priority
                  rho_S = 0.6,   #selection stage budget trial
                  rho_R = 0.60,  #refinement stage budget trial
-                 gamma = 0.3    #allocation ratio
+                 gamma = 0.3,    #allocation ratio
+                 logfile = "Individuals Generated.csv"
                  ):
         
         self.B = budgetTrial        # Budget Trial
@@ -44,7 +47,42 @@ class AdaptiveMultiStageStressTestedHPO:
             'filter_size': {'type': 'categorical',                          # Typical kernel sizes for capturing local and regional spectral patterns.
                             'values': [2, 3, 5, 7]}
         }
+        self.logfile = logfile
+        self._init_csv_logger()
 
+    def _init_csv_logger(self):
+        file_exists = os.path.isfile(self.logfile)
+        with open(self.logfile, mode='w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['Stage', 
+                             'Gen or Rank', 
+                             'Learning Rate', 
+                             'Activation Function',
+                             '# of Convolution Layers',
+                             '# of Filter Layers',
+                             "Kernel Size",
+                             'Loss Value',
+                             'Latency',
+                             'Fitness Score',
+                             'Status'])
+
+    def individual_logging(self, stage, gen_rank, config, loss, latency, fitness, status):
+        with open(self.logfile, mode='a', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([stage,
+                             gen_rank,
+                             f"{config['learning_rate']:.6f}",
+                             config['dropout_rate'],
+                             config['activation_function'],
+                             config['convolution_layers'],
+                             config['filter_layers'],
+                             config['filter_size'],
+                             f"{loss:.4f}",
+                             f"{latency:.2f}",
+                             f"{fitness:.4f}",
+                             status        
+                            ])
+            
     def individual_generation (self):
         individual = {}
 
@@ -100,6 +138,7 @@ class AdaptiveMultiStageStressTestedHPO:
         return mutated
     
     def optimization (self, train_eval):
+        print(f"Entering selection stage")
         # SELECTION STAGE #
         population = [{'config': self.individual_generatio, 
                          'fitness': 0, 
@@ -113,7 +152,7 @@ class AdaptiveMultiStageStressTestedHPO:
                 individual['loss'] = loss
                 individual['latency'] = latency
                 individual['fitness'] = self.fitness_function(loss, latency)
-                total_loss.append(loss)\
+                total_loss.append(loss)
                 
             population.sort(key=lambda x:x['fitness'], reverse=True)
             survivors = population[:max(1, len(population)//2)]
@@ -127,11 +166,38 @@ class AdaptiveMultiStageStressTestedHPO:
 
             population = next_gen
 
-        # REFINEMENT STAGE #
-
         for ind in population:
             if ind['fitness'] == 0:
                 loss, latency = train_eval(ind['config'], stressTest = False)
                 ind['loss'] , ind['latency'] = loss, latency
                 ind['fitness'] = self.fitness_function(loss, latency)
                 total_loss.append(loss)
+
+        population.sort(key=lambda x: x['fitness'], reverse=True)
+        p25_loss = np.percentile(total_loss, 25) 
+
+
+        # REFINEMENT STAGE #
+
+        for rank in range(min(self.R, len(population))):
+            candidate = population[rank]
+            print(f"Testing candidate {rank + 1} (Fitness score: {candidate['fitness']:.4f})")
+
+            #  ROBUST-BASED STRESS TESTING (SIMULATING HARDWARE NOISE)
+            stress_loss, stress_latency = train_eval(candidate['config'], stressTest = True)
+
+            #   LATENCY JITTER
+            p_trigger = 0.10
+            if np.random.rand() < p_trigger:
+                jitter = np.random.uniform(0, 50)
+                stress_latency += jitter
+                print(f"Added {jitter:.2f}ms latency jitter")
+
+            #   CONSTRAINT-AWARE REFINEMENT
+            if stress_latency <= 200.0 and stress_loss  <= p25_loss:
+                print(f"ACCEPT THE INDIVIDUAL as the optimal hyperparameter")
+                return candidate['config']
+            else:
+                print(f"Individual failed the test. Kill the individual. Promote second best individual to refinement stage")
+
+        print("Refinement budget trial used up. No candidate passed")
