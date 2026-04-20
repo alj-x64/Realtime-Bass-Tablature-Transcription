@@ -66,7 +66,14 @@ class AdaptiveMultiStageStressTestedHPO:
                              'Fitness Score',
                              'Status'])
 
-    def individual_logging(self, stage, gen_rank, config, loss, latency, fitness, status):
+    def individual_logging(self, 
+                           stage, 
+                           gen_rank, 
+                           config, 
+                           loss, 
+                           latency, 
+                           fitness, 
+                           status):
         with open(self.logfile, mode='a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow([stage,
@@ -100,7 +107,9 @@ class AdaptiveMultiStageStressTestedHPO:
             elif parameter['type'] == 'categorical':
                 individual[key] = random.choice(parameter['values'])
     
-    def fitness_function (self, loss, latency):
+    def fitness_function (self, 
+                          loss, 
+                          latency):
         
         latency_penalty = (latency/200) if latency > 0 else 0
         return self.alpha * (1 - loss) - self.beta * (latency_penalty)
@@ -154,6 +163,14 @@ class AdaptiveMultiStageStressTestedHPO:
                 individual['fitness'] = self.fitness_function(loss, latency)
                 total_loss.append(loss)
                 
+                self.individual_logging("Selection", 
+                                        f"Generation {generations + 1}", 
+                                        ind['config'], 
+                                        loss, 
+                                        latency, 
+                                        ind['fitness'],
+                                        "Evaluated")
+                
             population.sort(key=lambda x:x['fitness'], reverse=True)
             survivors = population[:max(1, len(population)//2)]
 
@@ -196,8 +213,22 @@ class AdaptiveMultiStageStressTestedHPO:
             #   CONSTRAINT-AWARE REFINEMENT
             if stress_latency <= 200.0 and stress_loss  <= p25_loss:
                 print(f"ACCEPT THE INDIVIDUAL as the optimal hyperparameter")
+                self.individual_logging("Refinement", 
+                                        f"Rank {rank + 1}", 
+                                        candidate['config'], 
+                                        stress_loss, 
+                                        stress_latency, 
+                                        candidate['fitness'],
+                                        "Promoted as Optimal")
                 return candidate['config']
             else:
                 print(f"Individual failed the test. Kill the individual. Promote second best individual to refinement stage")
 
         print("Refinement budget trial used up. No candidate passed")
+        self.individual_logging("Refinement", 
+                                "Fallback", 
+                                population[0]['config'], 
+                                population[0]['loss'],
+                                population[0]['latency'],
+                                population[0]['fitness'],
+                                "Fallback")
