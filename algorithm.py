@@ -211,7 +211,7 @@ class AdaptiveMultiStageStressTestedHPO:
                 print(f"Added {jitter:.2f}ms latency jitter")
 
             #   CONSTRAINT-AWARE REFINEMENT
-            if stress_latency <= 200.0 and stress_loss  <= p25_loss:
+            if stress_latency <= 200.0 and stress_loss <= p25_loss:
                 print(f"ACCEPT THE INDIVIDUAL as the optimal hyperparameter")
                 self.individual_logging("Refinement", 
                                         f"Rank {rank + 1}", 
