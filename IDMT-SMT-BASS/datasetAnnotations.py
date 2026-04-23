@@ -13,10 +13,10 @@ def midi_to_pitch(midi_note):
 
 def generate_annotations(dataset_directory, output_csv="dataset_labels.csv"):
      # MIDI values for open string
-     string_base_midi = {1: 28,
-                         2: 33,
-                         3: 38,
-                         4: 43}
+     string_base_midi = {1: 16,
+                         2: 21,
+                         3: 26,
+                         4: 31}
      
      filepaths = []
      for root, dirs, files in os.walk(dataset_directory):

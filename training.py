@@ -7,8 +7,15 @@ import optuna
 import csv
 import os
 
+from torch.utils.data import DataLoader, random_split
 from algorithm import AdaptiveMultiStageStressTestedHPO
 from model import BassTranscriptionCNN
+from dataset_loader import Dataset
+
+try:
+    from google.colab import drive
+except ImportError:
+    print("You are not in a Google Colab environment. Saving locally")
 
 def evaluate_model(config, train_loader, val_loader, stress_test, profile_latency):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -109,7 +116,6 @@ def create_optuna_objective(train_loader, val_loader):
             'filter_size': trial.suggest_categorical('filter_size', [2, 3, 5, 7])
         }
 
-
         loss, latency = evaluate_model(config, train_loader, val_loader, stress_test=False, profile_latency=False)
         return 1.0 - loss
     return optuna_objective
@@ -142,8 +148,81 @@ def optuna_csv_logger(study, trial, filename):
 if __name__ == "__main__":
 
     print("Optimization Experiment")
+
+    try:
+        drive.mount('content/drive')
+        GDRIVE_PATH = "/content/drive/MyDrive/CNN Training"
+    except:
+        GDRIVE_PATH = "./CNN Training"
     
-    MODE = 'PROPOSED'
+    if not os.path.exists(GDRIVE_PATH):
+        os.makedirs(GDRIVE_PATH)
+        print(f"Creating new folder at {GDRIVE_PATH}")
+    else:
+        print(f"Already linked in existing folder at {GDRIVE_PATH}")
+    
+    MODE = "PROPOSED" #   PROPOSED, BAYESIAN OPTIMIZATION, RANDOM SEARCH
     TOTAL_TRIALS = 30
 
     print("Loading dataset")
+    full_dataset = Dataset(csv_file = "dataset_labels.csv", root_dir="./IDMT-SMT-BASS")
+
+    train_size = int(0.8 * len(full_dataset))
+    val_size = len(full_dataset) - train_size
+    train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
+
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+    print(f"Training Samples: {len(train_dataset)} \nValidation Samples: {len(val_dataset)}")
+
+    print(f"Starting optimization using {MODE} ALGORITHM")
+    if MODE == "PROPOSED":
+        logfile = os.path.join(GDRIVE_PATH, "hpo_proposed_log.csv")
+        checkpoint = os.path.join(GDRIVE_PATH, "hpo_proposed_checkpoint.pkl")
+
+        hpo_engine = AdaptiveMultiStageStressTestedHPO(budgetTrial=30, 
+                                                       alpha=0.5, 
+                                                       beta=0.5, 
+                                                       rho_S=0.6, 
+                                                       rho_R=0.4, 
+                                                       gamma=0.3, 
+                                                       logfile=logfile,
+                                                       checkpoint=checkpoint)
+        train_eval_wrapper = lambda config, stress_test = False: evaluate_model(config, 
+                                                                                train_loader, 
+                                                                                val_loader, 
+                                                                                stress_test=stress_test, 
+                                                                                profile_latency=True)
+        best_config = hpo_engine.optimization(train_eval_wrapper)
+
+    elif MODE in ["BAYESIAN OPTIMIZATION", "RANDOM SEARCH"]:
+        database_path = f"sqlite:///{os.path.join(GDRIVE_PATH, f'optuna_{MODE.lower()}_study.db')}"
+        logfile = os.path.join(GDRIVE_PATH, f"optuna_{MODE.lower()}_log.csv")
+
+        sampler = optuna.samplers.RandomSampler() if MODE == "RANDOM SEARCH" else optuna.samplers.TPESampler()
+        study = optuna.create_study(direction='maximize', 
+                                    sampler=sampler,
+                                    study_name=f"optimization_{MODE.lower()}",
+                                    load_if_exists=True,
+                                    storage=database_path)
+    
+        objective_function = create_optuna_objective(train_loader, val_loader)
+        
+        trials_left = TOTAL_TRIALS - len(study.trials)
+        if trials_left > 0:
+            print(f"Resuming optimization... {trials_left} trials left")
+            study.optimize(objective_function, 
+                        n_trials=trials_left, 
+                        callbacks=[lambda s, t: optuna_csv_logger(s, t, logfile)])
+        else:
+            print("Optimization completed.")
+
+        best_config = study.best_params
+
+    print(f"Final retraining with best config : {best_config}")
+
+    final_model = BassTranscriptionCNN(best_config).to('cuda' if torch.cuda.is_available() else 'cpu')
+    model_save_path = os.path.join(GDRIVE_PATH, f"trained_{MODE.lower()}.pth")
+    torch.save(final_model.state_dict(), model_save_path)
+
+    print(f"Trained weights saved as {model_save_path}")
