@@ -125,7 +125,7 @@ class AdaptiveMultiStageStressTestedHPO:
                     individual[key] = np.random.uniform(parameter['range'][0],
                                                         parameter['range'][1])
             elif parameter['type'] == 'discrete':
-                individual[key] = np.random.uniform(parameter['range'][0], 
+                individual[key] = np.random.randint(parameter['range'][0], 
                                                     parameter['range'][1] + 1)
             elif parameter['type'] == 'categorical':
                 individual[key] = random.choice(parameter['values'])
@@ -176,7 +176,7 @@ class AdaptiveMultiStageStressTestedHPO:
             stage = state['state']
             population = state['population']
             total_loss = state['total_loss']
-            start_gen = state.gen('generation', 0)
+            start_gen = state.get('generation', 0)
             refine_rank = state.get('refine_rank', 0)
             print(f"Resuming optimization from Stage: {stage}, Population: {population}, Generation: {start_gen}, Rank (Refinement Stage): {refine_rank}")
         else:

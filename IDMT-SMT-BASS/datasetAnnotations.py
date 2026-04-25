@@ -32,7 +32,7 @@ def generate_annotations(dataset_directory, output_csv="dataset_labels.csv"):
           return
      
      with open(output_csv, mode='w', newline='') as csv_file:
-          fieldnames = ['path',
+          fieldnames = ['filepath',
                         'filename', 
                         'pitch', 
                         'string', 
@@ -41,6 +41,7 @@ def generate_annotations(dataset_directory, output_csv="dataset_labels.csv"):
                         'offset']
           
           writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+          writer.writeheader()
 
           for idx, filepath in enumerate(filepaths):
                filename = os.path.basename(filepath)
@@ -102,7 +103,7 @@ def generate_annotations(dataset_directory, output_csv="dataset_labels.csv"):
                     continue
 
                writer.writerow({
-                    'path': filepath,
+                    'filepath': filepath.replace("\\", "/"),
                     'filename': filename,
                     'pitch': note_pitch,
                     'string': string_num,
@@ -125,4 +126,4 @@ if __name__ == "__main__":
           os.makedirs(TARGET_FOLDER)
           print(f"No folder detected. {TARGET_FOLDER} created")
 
-     else: generate_annotations(dataset_directory=TARGET_FOLDER, output_csv="dataset_labels.csv")
+     else: generate_annotations(dataset_directory=TARGET_FOLDER, output_csv="databases/dataset_labels.csv")

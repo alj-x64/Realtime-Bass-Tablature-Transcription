@@ -19,7 +19,7 @@ except ImportError:
 
 def evaluate_model(config, train_loader, val_loader, stress_test, profile_latency):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = model(config).to(device)
+    model = BassTranscriptionCNN(config).to(device)
 
     criterion_class = nn.CrossEntropyLoss()
     criterion_binary = nn.BCELoss()
@@ -63,7 +63,7 @@ def evaluate_model(config, train_loader, val_loader, stress_test, profile_latenc
                     val_loss_fret = criterion_class(val_out_fret, val_labels['fret'])
                     val_loss_pitch = criterion_class(val_out_pitch, val_labels['pitch'])
                     val_loss_onset = criterion_binary(val_out_onset, val_labels['onset'])
-                    val_loss_offset = criterion_binary(val_out_offset, val_labels['offset'])\
+                    val_loss_offset = criterion_binary(val_out_offset, val_labels['offset'])
 
                     val_loss_accumulated += (val_loss_string + val_loss_fret + val_loss_pitch + val_loss_onset + val_loss_offset).item()
             
@@ -110,7 +110,7 @@ def create_optuna_objective(train_loader, val_loader):
         config = {
             'learning_rate': trial.suggest_float('learning_rate', 1e-5, 1e-2, log=True),
             'dropout_rate': trial.suggest_float('dropout_rate', 0.1, 0.5),
-            'activation_funciton': trial.suggest_categorical('activation', ['ReLU', 'Tanh', 'ELU']),
+            'activation_funciton': trial.suggest_categorical('activation_function', ['ReLU', 'Tanh', 'ELU']),
             'convolution_layers': trial.suggest_int('convolution_layers', 1,4),
             'filter_layers': trial.suggest_categorical('filter_layers', [16, 32, 64, 128]),
             'filter_size': trial.suggest_categorical('filter_size', [2, 3, 5, 7])
@@ -150,7 +150,7 @@ if __name__ == "__main__":
     print("Optimization Experiment")
 
     try:
-        drive.mount('content/drive')
+        drive.mount('/content/drive')
         GDRIVE_PATH = "/content/drive/MyDrive/CNN Training"
     except:
         GDRIVE_PATH = "./CNN Training"
@@ -165,7 +165,7 @@ if __name__ == "__main__":
     TOTAL_TRIALS = 30
 
     print("Loading dataset")
-    full_dataset = Dataset(csv_file = "dataset_labels.csv", root_dir="./IDMT-SMT-BASS")
+    full_dataset = Dataset(csv_file = "augmented_dataset_labels.csv", root_dir="IDMT-SMT-BASS")
 
     train_size = int(0.8 * len(full_dataset))
     val_size = len(full_dataset) - train_size
