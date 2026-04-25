@@ -40,7 +40,7 @@ class AdaptiveMultiStageStressTestedHPO:
                               'range': [1e-5, 1e-2]},
             'dropout_rate': {'type': 'continuous',                          # To prevent overfitting without excessive information loss.
                              'range' : [0.1, 0.5]},
-            'acivation_function' : {'type': 'categorical',                  # To test non-linearity performance in spectral feature maps.
+            'activation_function' : {'type': 'categorical',                  # To test non-linearity performance in spectral feature maps.
                                     'values': ['ReLU', 'Tanh', 'ELU']},
             'convolution_layers': {'type': 'discrete',                      # Balancing depth for accuracy vs. latency
                                    'range': [1, 4]},
@@ -129,6 +129,8 @@ class AdaptiveMultiStageStressTestedHPO:
                                                     parameter['range'][1] + 1)
             elif parameter['type'] == 'categorical':
                 individual[key] = random.choice(parameter['values'])
+        
+        return individual
     
     def fitness_function (self, 
                           loss, 
@@ -182,7 +184,7 @@ class AdaptiveMultiStageStressTestedHPO:
         else:
             print(f"Entering selection stage")
             stage = 'Selection'
-            population = [{'config': self.individual_generation, 
+            population = [{'config': self.individual_generation(), 
                             'fitness': 0, 
                             'latency': 0, 
                             'loss': 0} for population in range(self.P)]
@@ -232,7 +234,7 @@ class AdaptiveMultiStageStressTestedHPO:
 
             for ind in population:
                 if ind['fitness'] == 0:
-                    loss, latency = train_eval(ind['config'], stress_Test = False)
+                    loss, latency = train_eval(ind['config'], stress_test = False)
                     ind['loss'] , ind['latency'] = loss, latency
                     ind['fitness'] = self.fitness_function(loss, latency)
                     total_loss.append(loss)
@@ -253,7 +255,7 @@ class AdaptiveMultiStageStressTestedHPO:
                 print(f"Testing candidate {rank + 1} (Fitness score: {candidate['fitness']:.4f})")
 
                 #  ROBUST-BASED STRESS TESTING (SIMULATING HARDWARE NOISE)
-                stress_loss, stress_latency = train_eval(candidate['config'], stressTest = True)
+                stress_loss, stress_latency = train_eval(candidate['config'], stress_test = True)
 
                 #   LATENCY JITTER
                 p_trigger = 0.10

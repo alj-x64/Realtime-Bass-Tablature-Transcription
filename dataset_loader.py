@@ -6,7 +6,7 @@ import pandas as pd
 from torch.utils.data import Dataset
 
 class Dataset(Dataset):
-    def __int__(self, csv_file, root_dir, audio_length = 4608, sr = 22050):
+    def __init__(self, csv_file, root_dir, audio_length = 4608, sr = 22050):
         self.annotations = pd.read_csv(csv_file)
         self.root_dir = root_dir
         self.audio_length = audio_length
@@ -24,15 +24,9 @@ class Dataset(Dataset):
     def __len__(self):
         return len(self.annotations)
     
-    def get_audio_path(self, filename):
-        for root, _, files in os.walk(self.root_dir):
-            if filename in files:
-                return os.path.join(root, filename)
-            return None
-    
     def __getitem__(self, index):
         row = self.annotations.iloc[index]
-        audio_path = self.get_audio_path(row['filename'])
+        audio_path = os.path.join(self.root_dir, row['filepath'])
 
         if audio_path is None:
             return torch.zeros(self.audio_length), self._get_dummy_labels()
@@ -40,7 +34,7 @@ class Dataset(Dataset):
         try:
             onset_time = row['onset']
             offset_time = row['offset']
-            duration = librosa.get_duration(path=self.audio_path)
+            duration = librosa.get_duration(path=audio_path)
 
             scenario = np.random.choice(['onset', 'offset', 'sustain', 'silence'])
 
@@ -78,7 +72,7 @@ class Dataset(Dataset):
         if is_active:
             string_label = int(row['string'])
             fret_label = int(row['fret']) + 1
-            pitch_label = self.pitch_to_index.get(row['pitchh'], 0)
+            pitch_label = self.pitch_to_index.get(row['pitch'], 0)
         else:
             string_label = 0
             fret_label = 0
