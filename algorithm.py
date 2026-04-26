@@ -60,7 +60,8 @@ class AdaptiveMultiStageStressTestedHPO:
             writer = csv.writer(f)
             writer.writerow(['Stage', 
                              'Gen or Rank', 
-                             'Learning Rate', 
+                             'Learning Rate',
+                             'Dropout Rate', 
                              'Activation Function',
                              '# of Convolution Layers',
                              '# of Filter Layers',
@@ -78,21 +79,26 @@ class AdaptiveMultiStageStressTestedHPO:
                            latency, 
                            fitness, 
                            status):
-        with open(self.logfile, mode='a', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow([stage,
-                             gen_rank,
-                             f"{config['learning_rate']:.6f}",
-                             config['dropout_rate'],
-                             config['activation_function'],
-                             config['convolution_layers'],
-                             config['filter_layers'],
-                             config['filter_size'],
-                             f"{loss:.4f}",
-                             f"{latency:.2f}",
-                             f"{fitness:.4f}",
-                             status        
-                            ])
+        print("ABOUT TO WRITE CSV")
+        try:
+            with open(self.logfile, mode='a', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow([stage,
+                                gen_rank,
+                                f"{config['learning_rate']:.6f}",
+                                config['dropout_rate'],
+                                config['activation_function'],
+                                config['convolution_layers'],
+                                config['filter_layers'],
+                                config['filter_size'],
+                                f"{loss:.4f}",
+                                f"{latency:.2f}",
+                                f"{fitness:.4f}",
+                                status        
+                                ])
+            print("CSV Logged")
+        except Exception as e:
+            print("CSV Logging failed: ", e)
 
     def save_checkpoint(self, state):
         with open(self.checkpoint_file, 'wb') as f:
@@ -137,7 +143,7 @@ class AdaptiveMultiStageStressTestedHPO:
                           latency):
         
         latency_penalty = (latency/200) if latency > 0 else 0
-        return self.alpha * (1 - loss) - self.beta * (latency_penalty)
+        return 1/(self.alpha * (1 + loss) + self.beta * (latency_penalty))
 
     def crossover (self,
                    parent1,
@@ -173,9 +179,10 @@ class AdaptiveMultiStageStressTestedHPO:
     
     def optimization (self, train_eval):
         state = self.load_checkpoint()
+        trial_counter = 0
 
         if state:
-            stage = state['state']
+            stage = state['stage']
             population = state['population']
             total_loss = state['total_loss']
             start_gen = state.get('generation', 0)
@@ -185,7 +192,7 @@ class AdaptiveMultiStageStressTestedHPO:
             print(f"Entering selection stage")
             stage = 'Selection'
             population = [{'config': self.individual_generation(), 
-                            'fitness': 0, 
+                            'fitness': None, 
                             'latency': 0, 
                             'loss': 0} for population in range(self.P)]
             total_loss = []
@@ -194,26 +201,47 @@ class AdaptiveMultiStageStressTestedHPO:
 
         if stage == 'Selection':
             for generations in range(self.G):
+                print(f"\n--- Generation {generations + 1}/{self.G} ---\n")
+
                 for individual in population:
+                    trial_counter += 1
+
+                    cfg = individual['config']
+
+                    print(f"[PROPOSED] Trial {trial_counter}/{self.B}")
+                    print(f"Config → LR={cfg['learning_rate']:.6f} | Conv={cfg['convolution_layers']} "
+                        f"| Filters={cfg['filter_layers']} | Kernel={cfg['filter_size']}")
+                    
                     loss, latency, = train_eval(individual['config'], stress_test = False)
                     individual['loss'] = loss
                     individual['latency'] = latency
                     individual['fitness'] = self.fitness_function(loss, latency)
                     total_loss.append(loss)
+
+                    print(f"Result → Loss={loss:.4f} | Latency={latency:.2f}ms | "
+                      f"Fitness={individual['fitness']:.4f}\n")
+
                     
                     self.individual_logging("Selection", 
                                             f"Generation {generations + 1}", 
-                                            ind['config'], 
+                                            individual['config'], 
                                             loss, 
                                             latency, 
-                                            ind['fitness'],
+                                            individual['fitness'],
                                             "Evaluated")
                     
                 population.sort(key=lambda x:x['fitness'], reverse=True)
+
+                best = population[0]
+                print(f"\n[GEN {generations+1} BEST] "
+                    f"Loss={best['loss']:.4f} | Latency={best['latency']:.2f} | "
+                    f"Fitness={best['fitness']:.4f}\n")
+                
                 survivors = population[:max(1, len(population)//2)]
 
                 #   Crossover and Mutation
                 next_gen = copy.deepcopy(survivors)
+
                 while len(next_gen) < self.P:
                     p1, p2 = random.sample(survivors, 2) if len(survivors) > 1 else (survivors[0], survivors[0])
                     offspring = self.crossover(p1['config'], p2['config'])
@@ -223,7 +251,7 @@ class AdaptiveMultiStageStressTestedHPO:
                 population = next_gen
 
                 self.save_checkpoint({
-                    'stage': 'selection',
+                    'stage': 'Selection',
                     'generation': generations + 1,
                     'population': population,
                     'total_loss': total_loss
@@ -231,9 +259,10 @@ class AdaptiveMultiStageStressTestedHPO:
 
             #   Evaluation of Final Generation for Refinement Stage
             stage = 'Refinement'
+            print("\n=== ENTERING REFINEMENT STAGE ===\n")
 
             for ind in population:
-                if ind['fitness'] == 0:
+                if ind['fitness'] is None:
                     loss, latency = train_eval(ind['config'], stress_test = False)
                     ind['loss'] , ind['latency'] = loss, latency
                     ind['fitness'] = self.fitness_function(loss, latency)

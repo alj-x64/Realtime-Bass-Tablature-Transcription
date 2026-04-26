@@ -190,7 +190,7 @@ def generate_dataset(orig_csv, orig_root, dest_root, dest_csv):
                 eq_row['filepath'] = os.path.join(dest_root, eq_filename).replace("\\", "/")
             new_annotations.append(eq_row)
 
-            num_to_append = np.random.choice([3,4,5])
+            """ num_to_append = np.random.choice([3,4,5])
             y_concat, extra_labels = augmentor.concantenate_notes(np.copy(y), annotation, orig_root, num_append=num_to_append)
 
             if len(extra_labels) > 0:
@@ -207,7 +207,7 @@ def generate_dataset(orig_csv, orig_root, dest_root, dest_csv):
                     extra_row = row.to_dict()
 
                     if 'filepath' in extra_row:
-                        extra_row['filepath'] = os.path.join(dest_root, concat_filename)
+                        extra_row['filepath'] = os.path.join(dest_root, concat_filename).replace("\\", "/")
                     extra_row['filename'] = concat_filename
                     extra_row['pitch'] = extra['pitch']
                     extra_row['string'] = extra['string']
@@ -218,7 +218,7 @@ def generate_dataset(orig_csv, orig_root, dest_root, dest_csv):
 
 
                     new_annotations.append(extra_row)
-
+ """
         except Exception as e:
             print(f"Failed to augment {orig_filename}: {e}")
 
@@ -239,7 +239,7 @@ if __name__ == "__main__":
     ORIGINAL_CSV = "databases/dataset_labels.csv"
     ORIGINAL_DIR = "IDMT-SMT-BASS"
 
-    AUGMENTED_DIR = "./IDMT-SMT-BASS/Augmented"
+    AUGMENTED_DIR = "IDMT-SMT-BASS/Augmented"
     AUGMENTED_CSV = "databases/augmented_dataset_labels.csv"
 
     generate_dataset(ORIGINAL_CSV, ORIGINAL_DIR, AUGMENTED_DIR, AUGMENTED_CSV)

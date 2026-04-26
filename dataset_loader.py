@@ -32,42 +32,30 @@ class Dataset(Dataset):
             return torch.zeros(self.audio_length), self._get_dummy_labels()
 
         try:
-            onset_time = row['onset']
-            offset_time = row['offset']
-            duration = librosa.get_duration(path=audio_path)
+            onset_time = float(row['onset'])
+            offset_time = float(row['offset'])
 
-            scenario = np.random.choice(['onset', 'offset', 'sustain', 'silence'])
+            y_main, _ = librosa.load(audio_path, sr=self.sr)
 
+            start_sample = max(0, int(onset_time * self.sr))
+            end_sample = min(len(y_main), int(offset_time * self.sr))
 
-            if scenario == 'onset':
-                target_time = onset_time
-                onset_label, offset_label, is_active = 1.0, 0.0, True
-            elif scenario == 'offset':
-                target_time = offset_time
-                onset_label, offset_label, is_active = 0.0, 1.0, False
-            elif scenario == 'sustain' and (offset_time - onset_time > 0.3):
-                target_time = np.random.uniform(onset_time + 0.1, offset_time - 0.1)
-                onset_label, offset_label, is_active = 0.0, 0.0, True
-            else:
-                if onset_time > 0.4 and np.random.rand() > 0.5:
-                    target_time = np.random.uniform(0, onset_time - 0.2)
-                elif duration > offset_time + 0.4:
-                    target_time = np.random.uniform(offset_time + 0.2, duration)
-                else:
-                    target_time = duration
-                onset_label, offset_label, is_active = 0.0, 0.0, False
-            
-            start_sample = max(0, int(target_time * self.sr) - (self.audio_length // 2))
-            y_main, _ = librosa.load(audio_path, sr=self.sr, offset=start_sample / self.sr, duration=self.audio_length / self.sr)
+            y_main = y_main[start_sample:end_sample]
 
             if len(y_main) < self.audio_length:
-                y_main = np.pad(y_main, (0, self.audio_length - len(y_main)), mode='constant')
+                y_main = np.pad(y_main, (0, self.audio_length - len(y_main)))
             else:
                 y_main = y_main[:self.audio_length]
 
+            is_active = True
+            onset_label = 1.0
+            offset_label = 1.0
+
         except Exception as e:
             y_main = np.zeros(self.audio_length, dtype=np.float32)
-            onset_label, offset_label, is_active = 0.0, 0.0, False
+            is_active = False
+            onset_label = 0.0
+            offset_label = 0.0
         
         if is_active:
             string_label = int(row['string'])

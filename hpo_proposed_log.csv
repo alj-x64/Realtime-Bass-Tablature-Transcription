@@ -1,0 +1,17 @@
+Stage,Gen or Rank,Learning Rate,Dropout Rate,Activation Function,# of Convolution Layers,# of Filter Layers,Kernel Size,Loss Value,Latency,Fitness Score,Status
+Selection,Generation 1,0.000383,0.37648411961682393,ReLU,2,128,7,7.0987,5.33,0.2461,Evaluated
+Selection,Generation 1,0.009380,0.11746618342276421,ReLU,4,32,5,7.1964,5.63,0.2432,Evaluated
+Selection,Generation 1,0.005444,0.19157729381157235,ELU,4,64,5,7.1947,5.19,0.2433,Evaluated
+Selection,Generation 1,0.000109,0.2158444444401039,ELU,3,64,2,7.1985,5.45,0.2431,Evaluated
+Selection,Generation 1,0.004090,0.3828700205605532,ELU,2,64,5,7.1677,4.12,0.2443,Evaluated
+Selection,Generation 1,0.000114,0.4785130666995451,ReLU,3,128,2,7.2418,5.03,0.2419,Evaluated
+Selection,Generation 2,0.000383,0.37648411961682393,ReLU,2,128,7,7.1282,4.13,0.2454,Evaluated
+Selection,Generation 2,0.004090,0.3828700205605532,ELU,2,64,5,7.1578,4.17,0.2445,Evaluated
+Selection,Generation 2,0.005444,0.19157729381157235,ELU,4,64,5,7.1964,5.39,0.2432,Evaluated
+Selection,Generation 2,0.000383,0.324585407683035,Tanh,2,128,5,7.1563,11.93,0.2434,Evaluated
+Selection,Generation 2,0.000383,0.3828700205605532,ReLU,2,64,2,7.1727,9.71,0.2433,Evaluated
+Selection,Generation 2,0.000383,0.2650308240164931,Tanh,4,16,5,7.2022,23.35,0.2404,Evaluated
+Selection,Generation 3,0.000383,0.37648411961682393,ReLU,2,128,7,7.0210,5.22,0.2485,Evaluated
+Selection,Generation 3,0.004090,0.3828700205605532,ELU,2,64,5,7.1464,18.75,0.2427,Evaluated
+Selection,Generation 3,0.000383,0.324585407683035,Tanh,2,128,5,7.1525,4.42,0.2447,Evaluated
+Selection,Generation 3,0.000383,0.3828700205605532,Tanh,1,64,3,7.1711,4.41,0.2441,Evaluated
