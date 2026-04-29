@@ -1,0 +1,8 @@
+{
+    "learning_rate": 0.00038312151693010364,
+    "dropout_rate": 0.37648411961682393,
+    "activation_function": "ReLU",
+    "convolution_layers": 2,
+    "filter_layers": 128,
+    "filter_size": 7
+}

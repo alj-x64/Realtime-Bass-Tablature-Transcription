@@ -143,7 +143,7 @@ class AdaptiveMultiStageStressTestedHPO:
                           latency):
         
         latency_penalty = (latency/200) if latency > 0 else 0
-        return 1/(self.alpha * (1 + loss) + self.beta * (latency_penalty))
+        return self.alpha * (1 - loss) + self.beta * (latency_penalty)
 
     def crossover (self,
                    parent1,
